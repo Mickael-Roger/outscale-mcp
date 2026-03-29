@@ -69,6 +69,11 @@ The server communicates via stdio using the MCP protocol.
 | `osc_read_volumes` | List block storage volumes |
 | `osc_read_nets` | List VPCs/Nets |
 | `osc_read_subnets` | List Subnets |
+| `osc_read_route_tables` | List Route Tables and their routes |
+| `osc_read_internet_services` | List Internet Services (Internet Gateways) |
+| `osc_read_nat_services` | List NAT Services and their public IPs |
+| `osc_read_net_peerings` | List Net Peerings between VPCs |
+| `osc_read_net_access_points` | List Net Access Points (VPC Endpoints) |
 | `osc_read_public_ips` | List Public IP addresses |
 | `osc_read_security_groups` | List Security Groups and rules |
 | `osc_read_images` | List machine images (OMIs) |
