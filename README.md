@@ -79,6 +79,7 @@ The server communicates via stdio using the MCP protocol.
 | `osc_read_images` | List machine images (OMIs) |
 | `osc_read_api_logs` | Query API access logs |
 | `osc_read_quotas` | List account quotas and usage |
+| `osc_read_load_balancers` | List Load Balancers with listeners, backends, and health checks |
 
 ## Example Queries
 

@@ -28,6 +28,7 @@ func RegisterAll(s *server.MCPServer, client *oscclient.Client) {
 	RegisterReadNatServices(s, client)
 	RegisterReadNetPeerings(s, client)
 	RegisterReadNetAccessPoints(s, client)
+	RegisterReadLoadBalancers(s, client)
 }
 
 // formatResult formats a result as JSON text.
