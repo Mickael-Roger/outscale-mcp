@@ -17,12 +17,19 @@ func RegisterAll(s *server.MCPServer, client *oscclient.Client) {
 	RegisterReadVolumes(s, client)
 	RegisterReadNets(s, client)
 	RegisterReadSubnets(s, client)
+	RegisterReadRouteTables(s, client)
 	RegisterReadSecurityGroups(s, client)
 	RegisterReadPublicIps(s, client)
 	RegisterReadApiLogs(s, client)
 	RegisterReadQuotas(s, client)
 	RegisterReadImages(s, client)
 	RegisterReadVmState(s, client)
+	RegisterReadInternetServices(s, client)
+	RegisterReadNatServices(s, client)
+	RegisterReadNetPeerings(s, client)
+	RegisterReadNetAccessPoints(s, client)
+	RegisterReadLoadBalancers(s, client)
+	RegisterReadConsoleOutput(s, client)
 }
 
 // formatResult formats a result as JSON text.

@@ -30,6 +30,13 @@ func safeInt32(i *int32) int32 {
 	return *i
 }
 
+func safeBool(b *bool) bool {
+	if b == nil {
+		return false
+	}
+	return *b
+}
+
 // safeInt64 safely extracts an int64 from a pointer.
 func safeInt64(i *int64) int64 {
 	if i == nil {
