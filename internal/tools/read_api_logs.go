@@ -10,7 +10,7 @@ import (
 )
 
 // RegisterReadApiLogs registers the API logs inspection tool.
-func RegisterReadApiLogs(s *server.MCPServer, client *oscclient.Client) {
+func RegisterReadApiLogs(s *server.MCPServer, clientManager *oscclient.ClientManager) {
 	tool := mcp.NewTool("osc_read_api_logs",
 		mcp.WithDescription(`Query API access logs for debugging and auditing.
 
@@ -31,19 +31,19 @@ Use this tool to:
 		mcp.WithString("response_status_codes",
 			mcp.Description("Filter by HTTP status codes (comma-separated, e.g., 200, 400, 500)"),
 		),
+		mcp.WithString("profile",
+			mcp.Description("Profile name to use (optional, uses default if not specified)"),
+		),
 	)
 
 	s.AddTool(tool, func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleReadApiLogs(ctx, client, req)
+		return withClient(ctx, clientManager, req, func(authCtx context.Context, client *oscclient.Client, profile string) (*mcp.CallToolResult, error) {
+			return handleReadApiLogs(authCtx, client, req, profile)
+		})
 	})
 }
 
-func handleReadApiLogs(ctx context.Context, client *oscclient.Client, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	authCtx, err := client.Context(ctx)
-	if err != nil {
-		return mcp.NewToolResultText("Authentication failed: " + err.Error()), nil
-	}
-
+func handleReadApiLogs(authCtx context.Context, client *oscclient.Client, req mcp.CallToolRequest, profile string) (*mcp.CallToolResult, error) {
 	filters := osc.FiltersApiLog{}
 	args := req.Params.Arguments
 
@@ -98,6 +98,7 @@ func handleReadApiLogs(ctx context.Context, client *oscclient.Client, req mcp.Ca
 	response := map[string]interface{}{
 		"logs":       logs,
 		"count":      len(logs),
+		"profile":    profile,
 		"request_id": safeResponseId(read.ResponseContext),
 	}
 

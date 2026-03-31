@@ -2,6 +2,7 @@
 package tools
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
@@ -11,25 +12,49 @@ import (
 )
 
 // RegisterAll registers all debugging tools with the MCP server.
-func RegisterAll(s *server.MCPServer, client *oscclient.Client) {
-	RegisterCheckAuth(s, client)
-	RegisterReadVMs(s, client)
-	RegisterReadVolumes(s, client)
-	RegisterReadNets(s, client)
-	RegisterReadSubnets(s, client)
-	RegisterReadRouteTables(s, client)
-	RegisterReadSecurityGroups(s, client)
-	RegisterReadPublicIps(s, client)
-	RegisterReadApiLogs(s, client)
-	RegisterReadQuotas(s, client)
-	RegisterReadImages(s, client)
-	RegisterReadVmState(s, client)
-	RegisterReadInternetServices(s, client)
-	RegisterReadNatServices(s, client)
-	RegisterReadNetPeerings(s, client)
-	RegisterReadNetAccessPoints(s, client)
-	RegisterReadLoadBalancers(s, client)
-	RegisterReadConsoleOutput(s, client)
+func RegisterAll(s *server.MCPServer, clientManager *oscclient.ClientManager) {
+	RegisterListProfiles(s, clientManager)
+	RegisterCheckAuth(s, clientManager)
+	RegisterReadVMs(s, clientManager)
+	RegisterReadVolumes(s, clientManager)
+	RegisterReadNets(s, clientManager)
+	RegisterReadSubnets(s, clientManager)
+	RegisterReadRouteTables(s, clientManager)
+	RegisterReadSecurityGroups(s, clientManager)
+	RegisterReadPublicIps(s, clientManager)
+	RegisterReadApiLogs(s, clientManager)
+	RegisterReadQuotas(s, clientManager)
+	RegisterReadImages(s, clientManager)
+	RegisterReadVmState(s, clientManager)
+	RegisterReadInternetServices(s, clientManager)
+	RegisterReadNatServices(s, clientManager)
+	RegisterReadNetPeerings(s, clientManager)
+	RegisterReadNetAccessPoints(s, clientManager)
+	RegisterReadLoadBalancers(s, clientManager)
+	RegisterReadConsoleOutput(s, clientManager)
+}
+
+// withClient is a helper that extracts the profile parameter, gets the appropriate client,
+// creates an authenticated context, and calls the provided function.
+// This eliminates duplicated authentication logic across all tools.
+func withClient(
+	ctx context.Context,
+	clientManager *oscclient.ClientManager,
+	req mcp.CallToolRequest,
+	fn func(authCtx context.Context, client *oscclient.Client, profile string) (*mcp.CallToolResult, error),
+) (*mcp.CallToolResult, error) {
+	profile := getString(req.Params.Arguments, "profile")
+	client, err := clientManager.GetClient(profile)
+	if err != nil {
+		return mcp.NewToolResultText("Failed to get client: " + err.Error()), nil
+	}
+
+	authCtx, err := client.Context(ctx)
+	if err != nil {
+		return mcp.NewToolResultText("Authentication failed: " + err.Error()), nil
+	}
+
+	return fn(authCtx, client, profile)
 }
 
 // formatResult formats a result as JSON text.

@@ -10,7 +10,7 @@ import (
 )
 
 // RegisterReadVolumes registers the volume inspection tool.
-func RegisterReadVolumes(s *server.MCPServer, client *oscclient.Client) {
+func RegisterReadVolumes(s *server.MCPServer, clientManager *oscclient.ClientManager) {
 	tool := mcp.NewTool("osc_read_volumes",
 		mcp.WithDescription(`List and inspect block storage volumes in your Outscale account.
 
@@ -19,6 +19,9 @@ Use this tool to:
 - Debug volume attachment issues
 - Inspect volume configurations (size, type, IOPS)
 - Find volumes linked to specific VMs`),
+		mcp.WithString("profile",
+			mcp.Description("Profile name to use (optional, uses default if not specified)"),
+		),
 		mcp.WithString("volume_ids",
 			mcp.Description("Filter by volume IDs (comma-separated)"),
 		),
@@ -34,16 +37,13 @@ Use this tool to:
 	)
 
 	s.AddTool(tool, func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleReadVolumes(ctx, client, req)
+		return withClient(ctx, clientManager, req, func(authCtx context.Context, client *oscclient.Client, profile string) (*mcp.CallToolResult, error) {
+			return handleReadVolumes(authCtx, client, req, profile)
+		})
 	})
 }
 
-func handleReadVolumes(ctx context.Context, client *oscclient.Client, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	authCtx, err := client.Context(ctx)
-	if err != nil {
-		return mcp.NewToolResultText("Authentication failed: " + err.Error()), nil
-	}
-
+func handleReadVolumes(authCtx context.Context, client *oscclient.Client, req mcp.CallToolRequest, profile string) (*mcp.CallToolResult, error) {
 	filters := osc.FiltersVolume{}
 	args := req.Params.Arguments
 
@@ -88,6 +88,7 @@ func handleReadVolumes(ctx context.Context, client *oscclient.Client, req mcp.Ca
 	response := map[string]interface{}{
 		"volumes":    volumes,
 		"count":      len(volumes),
+		"profile":    profile,
 		"request_id": safeResponseId(read.ResponseContext),
 	}
 

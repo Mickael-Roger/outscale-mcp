@@ -10,7 +10,7 @@ import (
 	oscclient "github.com/thomassaison/outscale-mcp/internal/osc"
 )
 
-func RegisterReadConsoleOutput(s *server.MCPServer, client *oscclient.Client) {
+func RegisterReadConsoleOutput(s *server.MCPServer, clientManager *oscclient.ClientManager) {
 	tool := mcp.NewTool("osc_read_console_output",
 		mcp.WithDescription(`Get the console output (boot logs) of a virtual machine.
 
@@ -23,19 +23,19 @@ Use this tool to:
 			mcp.Description("The ID of the VM (required)"),
 			mcp.Required(),
 		),
+		mcp.WithString("profile",
+			mcp.Description("Profile name to use (optional, uses default if not specified)"),
+		),
 	)
 
 	s.AddTool(tool, func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleReadConsoleOutput(ctx, client, req)
+		return withClient(ctx, clientManager, req, func(authCtx context.Context, client *oscclient.Client, profile string) (*mcp.CallToolResult, error) {
+			return handleReadConsoleOutput(authCtx, client, req, profile)
+		})
 	})
 }
 
-func handleReadConsoleOutput(ctx context.Context, client *oscclient.Client, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	authCtx, err := client.Context(ctx)
-	if err != nil {
-		return mcp.NewToolResultText("Authentication failed: " + err.Error()), nil
-	}
-
+func handleReadConsoleOutput(authCtx context.Context, client *oscclient.Client, req mcp.CallToolRequest, profile string) (*mcp.CallToolResult, error) {
 	args := req.Params.Arguments
 	vmId := getString(args, "vm_id")
 	if vmId == "" {
@@ -61,6 +61,7 @@ func handleReadConsoleOutput(ctx context.Context, client *oscclient.Client, req 
 	response := map[string]interface{}{
 		"vm_id":          safeString(read.VmId),
 		"console_output": consoleOutput,
+		"profile":        profile,
 		"request_id":     safeResponseId(read.ResponseContext),
 	}
 

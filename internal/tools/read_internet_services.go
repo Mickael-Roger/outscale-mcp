@@ -9,7 +9,7 @@ import (
 	oscclient "github.com/thomassaison/outscale-mcp/internal/osc"
 )
 
-func RegisterReadInternetServices(s *server.MCPServer, client *oscclient.Client) {
+func RegisterReadInternetServices(s *server.MCPServer, clientManager *oscclient.ClientManager) {
 	tool := mcp.NewTool("osc_read_internet_services",
 		mcp.WithDescription(`List and inspect Internet Services in your Outscale account.
 
@@ -26,19 +26,19 @@ Use this tool to:
 		mcp.WithString("states",
 			mcp.Description("Filter by attachment states (comma-separated)"),
 		),
+		mcp.WithString("profile",
+			mcp.Description("Profile name to use (optional, uses default if not specified)"),
+		),
 	)
 
 	s.AddTool(tool, func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleReadInternetServices(ctx, client, req)
+		return withClient(ctx, clientManager, req, func(authCtx context.Context, client *oscclient.Client, profile string) (*mcp.CallToolResult, error) {
+			return handleReadInternetServices(authCtx, client, req, profile)
+		})
 	})
 }
 
-func handleReadInternetServices(ctx context.Context, client *oscclient.Client, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	authCtx, err := client.Context(ctx)
-	if err != nil {
-		return mcp.NewToolResultText("Authentication failed: " + err.Error()), nil
-	}
-
+func handleReadInternetServices(authCtx context.Context, client *oscclient.Client, req mcp.CallToolRequest, profile string) (*mcp.CallToolResult, error) {
 	filters := osc.FiltersInternetService{}
 	args := req.Params.Arguments
 
@@ -70,6 +70,7 @@ func handleReadInternetServices(ctx context.Context, client *oscclient.Client, r
 	response := map[string]interface{}{
 		"internet_services": internetServices,
 		"count":             len(internetServices),
+		"profile":           profile,
 		"request_id":        safeResponseId(read.ResponseContext),
 	}
 

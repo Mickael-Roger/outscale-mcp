@@ -10,7 +10,7 @@ import (
 )
 
 // RegisterReadNets registers the Net/VPC inspection tool.
-func RegisterReadNets(s *server.MCPServer, client *oscclient.Client) {
+func RegisterReadNets(s *server.MCPServer, clientManager *oscclient.ClientManager) {
 	tool := mcp.NewTool("osc_read_nets",
 		mcp.WithDescription(`List and inspect Nets (VPCs) in your Outscale account.
 
@@ -19,6 +19,9 @@ Use this tool to:
 - Debug network connectivity issues
 - Inspect CIDR blocks and DHCP options
 - Find Nets by ID or state`),
+		mcp.WithString("profile",
+			mcp.Description("Profile name to use (optional, uses default if not specified)"),
+		),
 		mcp.WithString("net_ids",
 			mcp.Description("Filter by Net/VPC IDs (comma-separated)"),
 		),
@@ -28,16 +31,13 @@ Use this tool to:
 	)
 
 	s.AddTool(tool, func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleReadNets(ctx, client, req)
+		return withClient(ctx, clientManager, req, func(authCtx context.Context, client *oscclient.Client, profile string) (*mcp.CallToolResult, error) {
+			return handleReadNets(authCtx, client, req, profile)
+		})
 	})
 }
 
-func handleReadNets(ctx context.Context, client *oscclient.Client, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	authCtx, err := client.Context(ctx)
-	if err != nil {
-		return mcp.NewToolResultText("Authentication failed: " + err.Error()), nil
-	}
-
+func handleReadNets(authCtx context.Context, client *oscclient.Client, req mcp.CallToolRequest, profile string) (*mcp.CallToolResult, error) {
 	filters := osc.FiltersNet{}
 	args := req.Params.Arguments
 
@@ -71,6 +71,7 @@ func handleReadNets(ctx context.Context, client *oscclient.Client, req mcp.CallT
 	response := map[string]interface{}{
 		"nets":       nets,
 		"count":      len(nets),
+		"profile":    profile,
 		"request_id": safeResponseId(read.ResponseContext),
 	}
 

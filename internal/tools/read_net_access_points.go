@@ -9,7 +9,7 @@ import (
 	oscclient "github.com/thomassaison/outscale-mcp/internal/osc"
 )
 
-func RegisterReadNetAccessPoints(s *server.MCPServer, client *oscclient.Client) {
+func RegisterReadNetAccessPoints(s *server.MCPServer, clientManager *oscclient.ClientManager) {
 	tool := mcp.NewTool("osc_read_net_access_points",
 		mcp.WithDescription(`List and inspect Net Access Points (VPC Endpoints) in your Outscale account.
 
@@ -29,19 +29,19 @@ Use this tool to:
 		mcp.WithString("states",
 			mcp.Description("Filter by states: pending, available, deleting, deleted (comma-separated)"),
 		),
+		mcp.WithString("profile",
+			mcp.Description("Profile name to use (optional, uses default if not specified)"),
+		),
 	)
 
 	s.AddTool(tool, func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleReadNetAccessPoints(ctx, client, req)
+		return withClient(ctx, clientManager, req, func(authCtx context.Context, client *oscclient.Client, profile string) (*mcp.CallToolResult, error) {
+			return handleReadNetAccessPoints(authCtx, client, req, profile)
+		})
 	})
 }
 
-func handleReadNetAccessPoints(ctx context.Context, client *oscclient.Client, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	authCtx, err := client.Context(ctx)
-	if err != nil {
-		return mcp.NewToolResultText("Authentication failed: " + err.Error()), nil
-	}
-
+func handleReadNetAccessPoints(authCtx context.Context, client *oscclient.Client, req mcp.CallToolRequest, profile string) (*mcp.CallToolResult, error) {
 	filters := osc.FiltersNetAccessPoint{}
 	args := req.Params.Arguments
 
@@ -76,6 +76,7 @@ func handleReadNetAccessPoints(ctx context.Context, client *oscclient.Client, re
 	response := map[string]interface{}{
 		"net_access_points": netAccessPoints,
 		"count":             len(netAccessPoints),
+		"profile":           profile,
 		"request_id":        safeResponseId(read.ResponseContext),
 	}
 

@@ -10,7 +10,7 @@ import (
 )
 
 // RegisterReadSecurityGroups registers the Security Group inspection tool.
-func RegisterReadSecurityGroups(s *server.MCPServer, client *oscclient.Client) {
+func RegisterReadSecurityGroups(s *server.MCPServer, clientManager *oscclient.ClientManager) {
 	tool := mcp.NewTool("osc_read_security_groups",
 		mcp.WithDescription(`List and inspect Security Groups in your Outscale account.
 
@@ -28,19 +28,19 @@ Use this tool to:
 		mcp.WithString("net_ids",
 			mcp.Description("Filter by Net/VPC IDs (comma-separated)"),
 		),
+		mcp.WithString("profile",
+			mcp.Description("Profile name to use (optional, uses default if not specified)"),
+		),
 	)
 
 	s.AddTool(tool, func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleReadSecurityGroups(ctx, client, req)
+		return withClient(ctx, clientManager, req, func(authCtx context.Context, client *oscclient.Client, profile string) (*mcp.CallToolResult, error) {
+			return handleReadSecurityGroups(authCtx, client, req, profile)
+		})
 	})
 }
 
-func handleReadSecurityGroups(ctx context.Context, client *oscclient.Client, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	authCtx, err := client.Context(ctx)
-	if err != nil {
-		return mcp.NewToolResultText("Authentication failed: " + err.Error()), nil
-	}
-
+func handleReadSecurityGroups(authCtx context.Context, client *oscclient.Client, req mcp.CallToolRequest, profile string) (*mcp.CallToolResult, error) {
 	filters := osc.FiltersSecurityGroup{}
 	args := req.Params.Arguments
 
@@ -79,6 +79,7 @@ func handleReadSecurityGroups(ctx context.Context, client *oscclient.Client, req
 	response := map[string]interface{}{
 		"security_groups": sgs,
 		"count":           len(sgs),
+		"profile":         profile,
 		"request_id":      safeResponseId(read.ResponseContext),
 	}
 

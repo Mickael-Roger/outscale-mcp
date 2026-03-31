@@ -10,7 +10,7 @@ import (
 )
 
 // RegisterReadVmState registers the VM state inspection tool.
-func RegisterReadVmState(s *server.MCPServer, client *oscclient.Client) {
+func RegisterReadVmState(s *server.MCPServer, clientManager *oscclient.ClientManager) {
 	tool := mcp.NewTool("osc_read_vm_state",
 		mcp.WithDescription(`Get detailed state information for specific VMs.
 
@@ -23,19 +23,19 @@ Use this tool to:
 			mcp.Required(),
 			mcp.Description("VM IDs to check (comma-separated)"),
 		),
+		mcp.WithString("profile",
+			mcp.Description("Profile name to use (optional, uses default if not specified)"),
+		),
 	)
 
 	s.AddTool(tool, func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleReadVmState(ctx, client, req)
+		return withClient(ctx, clientManager, req, func(authCtx context.Context, client *oscclient.Client, profile string) (*mcp.CallToolResult, error) {
+			return handleReadVmState(authCtx, client, req, profile)
+		})
 	})
 }
 
-func handleReadVmState(ctx context.Context, client *oscclient.Client, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	authCtx, err := client.Context(ctx)
-	if err != nil {
-		return mcp.NewToolResultText("Authentication failed: " + err.Error()), nil
-	}
-
+func handleReadVmState(authCtx context.Context, client *oscclient.Client, req mcp.CallToolRequest, profile string) (*mcp.CallToolResult, error) {
 	args := req.Params.Arguments
 	vmIds := getString(args, "vm_ids")
 	if vmIds == "" {
@@ -68,6 +68,7 @@ func handleReadVmState(ctx context.Context, client *oscclient.Client, req mcp.Ca
 	response := map[string]interface{}{
 		"vm_states":  vmStates,
 		"count":      len(vmStates),
+		"profile":    profile,
 		"request_id": safeResponseId(read.ResponseContext),
 	}
 

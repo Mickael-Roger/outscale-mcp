@@ -10,7 +10,7 @@ import (
 )
 
 // RegisterReadQuotas registers the Quota inspection tool.
-func RegisterReadQuotas(s *server.MCPServer, client *oscclient.Client) {
+func RegisterReadQuotas(s *server.MCPServer, clientManager *oscclient.ClientManager) {
 	tool := mcp.NewTool("osc_read_quotas",
 		mcp.WithDescription(`List and inspect account quotas in your Outscale account.
 
@@ -28,19 +28,19 @@ Use this tool to:
 		mcp.WithString("collections",
 			mcp.Description("Filter by collection/group names (comma-separated)"),
 		),
+		mcp.WithString("profile",
+			mcp.Description("Profile name to use (optional, uses default if not specified)"),
+		),
 	)
 
 	s.AddTool(tool, func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleReadQuotas(ctx, client, req)
+		return withClient(ctx, clientManager, req, func(authCtx context.Context, client *oscclient.Client, profile string) (*mcp.CallToolResult, error) {
+			return handleReadQuotas(authCtx, client, req, profile)
+		})
 	})
 }
 
-func handleReadQuotas(ctx context.Context, client *oscclient.Client, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	authCtx, err := client.Context(ctx)
-	if err != nil {
-		return mcp.NewToolResultText("Authentication failed: " + err.Error()), nil
-	}
-
+func handleReadQuotas(authCtx context.Context, client *oscclient.Client, req mcp.CallToolRequest, profile string) (*mcp.CallToolResult, error) {
 	filters := osc.FiltersQuota{}
 	args := req.Params.Arguments
 
@@ -82,6 +82,7 @@ func handleReadQuotas(ctx context.Context, client *oscclient.Client, req mcp.Cal
 	response := map[string]interface{}{
 		"quotas":     quotas,
 		"count":      len(quotas),
+		"profile":    profile,
 		"request_id": safeResponseId(read.ResponseContext),
 	}
 

@@ -10,7 +10,7 @@ import (
 )
 
 // RegisterReadSubnets registers the Subnet inspection tool.
-func RegisterReadSubnets(s *server.MCPServer, client *oscclient.Client) {
+func RegisterReadSubnets(s *server.MCPServer, clientManager *oscclient.ClientManager) {
 	tool := mcp.NewTool("osc_read_subnets",
 		mcp.WithDescription(`List and inspect Subnets in your Outscale account.
 
@@ -31,19 +31,19 @@ Use this tool to:
 		mcp.WithString("availability_zones",
 			mcp.Description("Filter by availability zones (comma-separated)"),
 		),
+		mcp.WithString("profile",
+			mcp.Description("Profile name to use (optional, uses default if not specified)"),
+		),
 	)
 
 	s.AddTool(tool, func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleReadSubnets(ctx, client, req)
+		return withClient(ctx, clientManager, req, func(authCtx context.Context, client *oscclient.Client, profile string) (*mcp.CallToolResult, error) {
+			return handleReadSubnets(authCtx, client, req, profile)
+		})
 	})
 }
 
-func handleReadSubnets(ctx context.Context, client *oscclient.Client, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	authCtx, err := client.Context(ctx)
-	if err != nil {
-		return mcp.NewToolResultText("Authentication failed: " + err.Error()), nil
-	}
-
+func handleReadSubnets(authCtx context.Context, client *oscclient.Client, req mcp.CallToolRequest, profile string) (*mcp.CallToolResult, error) {
 	filters := osc.FiltersSubnet{}
 	args := req.Params.Arguments
 
@@ -85,6 +85,7 @@ func handleReadSubnets(ctx context.Context, client *oscclient.Client, req mcp.Ca
 	response := map[string]interface{}{
 		"subnets":    subnets,
 		"count":      len(subnets),
+		"profile":    profile,
 		"request_id": safeResponseId(read.ResponseContext),
 	}
 

@@ -10,7 +10,7 @@ import (
 )
 
 // RegisterReadImages registers the Image inspection tool.
-func RegisterReadImages(s *server.MCPServer, client *oscclient.Client) {
+func RegisterReadImages(s *server.MCPServer, clientManager *oscclient.ClientManager) {
 	tool := mcp.NewTool("osc_read_images",
 		mcp.WithDescription(`List and inspect machine images (OMIs) in your Outscale account.
 
@@ -31,19 +31,19 @@ Use this tool to:
 		mcp.WithString("architectures",
 			mcp.Description("Filter by architectures: i386, x86_64 (comma-separated)"),
 		),
+		mcp.WithString("profile",
+			mcp.Description("Profile name to use (optional, uses default if not specified)"),
+		),
 	)
 
 	s.AddTool(tool, func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleReadImages(ctx, client, req)
+		return withClient(ctx, clientManager, req, func(authCtx context.Context, client *oscclient.Client, profile string) (*mcp.CallToolResult, error) {
+			return handleReadImages(authCtx, client, req, profile)
+		})
 	})
 }
 
-func handleReadImages(ctx context.Context, client *oscclient.Client, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	authCtx, err := client.Context(ctx)
-	if err != nil {
-		return mcp.NewToolResultText("Authentication failed: " + err.Error()), nil
-	}
-
+func handleReadImages(authCtx context.Context, client *oscclient.Client, req mcp.CallToolRequest, profile string) (*mcp.CallToolResult, error) {
 	filters := osc.FiltersImage{}
 	args := req.Params.Arguments
 
@@ -87,6 +87,7 @@ func handleReadImages(ctx context.Context, client *oscclient.Client, req mcp.Cal
 	response := map[string]interface{}{
 		"images":     images,
 		"count":      len(images),
+		"profile":    profile,
 		"request_id": safeResponseId(read.ResponseContext),
 	}
 

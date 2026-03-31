@@ -9,7 +9,7 @@ import (
 	oscclient "github.com/thomassaison/outscale-mcp/internal/osc"
 )
 
-func RegisterReadNatServices(s *server.MCPServer, client *oscclient.Client) {
+func RegisterReadNatServices(s *server.MCPServer, clientManager *oscclient.ClientManager) {
 	tool := mcp.NewTool("osc_read_nat_services",
 		mcp.WithDescription(`List and inspect NAT Services in your Outscale account.
 
@@ -29,19 +29,19 @@ Use this tool to:
 		mcp.WithString("states",
 			mcp.Description("Filter by states: pending, available, deleting, deleted (comma-separated)"),
 		),
+		mcp.WithString("profile",
+			mcp.Description("Profile name to use (optional, uses default if not specified)"),
+		),
 	)
 
 	s.AddTool(tool, func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleReadNatServices(ctx, client, req)
+		return withClient(ctx, clientManager, req, func(authCtx context.Context, client *oscclient.Client, profile string) (*mcp.CallToolResult, error) {
+			return handleReadNatServices(authCtx, client, req, profile)
+		})
 	})
 }
 
-func handleReadNatServices(ctx context.Context, client *oscclient.Client, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	authCtx, err := client.Context(ctx)
-	if err != nil {
-		return mcp.NewToolResultText("Authentication failed: " + err.Error()), nil
-	}
-
+func handleReadNatServices(authCtx context.Context, client *oscclient.Client, req mcp.CallToolRequest, profile string) (*mcp.CallToolResult, error) {
 	filters := osc.FiltersNatService{}
 	args := req.Params.Arguments
 
@@ -76,6 +76,7 @@ func handleReadNatServices(ctx context.Context, client *oscclient.Client, req mc
 	response := map[string]interface{}{
 		"nat_services": natServices,
 		"count":        len(natServices),
+		"profile":      profile,
 		"request_id":   safeResponseId(read.ResponseContext),
 	}
 

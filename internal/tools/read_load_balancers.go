@@ -9,7 +9,7 @@ import (
 	oscclient "github.com/thomassaison/outscale-mcp/internal/osc"
 )
 
-func RegisterReadLoadBalancers(s *server.MCPServer, client *oscclient.Client) {
+func RegisterReadLoadBalancers(s *server.MCPServer, clientManager *oscclient.ClientManager) {
 	tool := mcp.NewTool("osc_read_load_balancers",
 		mcp.WithDescription(`List and inspect Load Balancers in your Outscale account.
 
@@ -22,19 +22,19 @@ Use this tool to:
 		mcp.WithString("load_balancer_names",
 			mcp.Description("Filter by Load Balancer names (comma-separated)"),
 		),
+		mcp.WithString("profile",
+			mcp.Description("Profile name to use (optional, uses default if not specified)"),
+		),
 	)
 
 	s.AddTool(tool, func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleReadLoadBalancers(ctx, client, req)
+		return withClient(ctx, clientManager, req, func(authCtx context.Context, client *oscclient.Client, profile string) (*mcp.CallToolResult, error) {
+			return handleReadLoadBalancers(authCtx, client, req, profile)
+		})
 	})
 }
 
-func handleReadLoadBalancers(ctx context.Context, client *oscclient.Client, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	authCtx, err := client.Context(ctx)
-	if err != nil {
-		return mcp.NewToolResultText("Authentication failed: " + err.Error()), nil
-	}
-
+func handleReadLoadBalancers(authCtx context.Context, client *oscclient.Client, req mcp.CallToolRequest, profile string) (*mcp.CallToolResult, error) {
 	filters := osc.FiltersLoadBalancer{}
 	args := req.Params.Arguments
 
@@ -60,6 +60,7 @@ func handleReadLoadBalancers(ctx context.Context, client *oscclient.Client, req 
 	response := map[string]interface{}{
 		"load_balancers": lbs,
 		"count":          len(lbs),
+		"profile":        profile,
 		"request_id":     safeResponseId(read.ResponseContext),
 	}
 

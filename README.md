@@ -20,6 +20,8 @@ go build -o outscale-mcp ./cmd/outscale-mcp
 
 ## Configuration
 
+### Option 1: Environment Variables (Single Account)
+
 Set the following environment variables with your Outscale credentials:
 
 ```bash
@@ -28,12 +30,42 @@ export OSC_SECRET_KEY="your-secret-key"
 export OSC_REGION="eu-west-2"  # Optional, defaults to eu-west-2
 ```
 
+### Option 2: Configuration File (Multiple Accounts)
+
+Create a configuration file at `~/.osc/config.json` (or specify a custom path with `OSC_CONFIG_FILE`):
+
+```json
+{
+  "default": {
+    "access_key": "your-default-access-key",
+    "secret_key": "your-default-secret-key",
+    "region": "eu-west-2"
+  },
+  "production": {
+    "access_key": "your-prod-access-key",
+    "secret_key": "your-prod-secret-key",
+    "region": "eu-west-2"
+  },
+  "development": {
+    "access_key": "your-dev-access-key",
+    "secret_key": "your-dev-secret-key",
+    "region": "us-east-2"
+  }
+}
+```
+
+### Priority
+
+1. If `OSC_ACCESS_KEY` and `OSC_SECRET_KEY` are set → used as the "default" profile
+2. Otherwise → load from `OSC_CONFIG_FILE` or `~/.osc/config.json`
+
 ## Usage
 
 ### With Claude Desktop
 
 Add to your Claude Desktop configuration (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS):
 
+**Single account (environment variables):**
 ```json
 {
   "mcpServers": {
@@ -43,6 +75,20 @@ Add to your Claude Desktop configuration (`~/Library/Application Support/Claude/
         "OSC_ACCESS_KEY": "your-access-key",
         "OSC_SECRET_KEY": "your-secret-key",
         "OSC_REGION": "eu-west-2"
+      }
+    }
+  }
+}
+```
+
+**Multiple accounts (config file):**
+```json
+{
+  "mcpServers": {
+    "outscale": {
+      "command": "/path/to/outscale-mcp",
+      "env": {
+        "OSC_CONFIG_FILE": "/path/to/config.json"
       }
     }
   }
@@ -63,6 +109,7 @@ The server communicates via stdio using the MCP protocol.
 
 | Tool | Description |
 |------|-------------|
+| `osc_list_profiles` | List all available Outscale profiles |
 | `osc_check_auth` | Verify API credentials are valid |
 | `osc_read_vms` | List and inspect virtual machines |
 | `osc_read_vm_state` | Get detailed state for specific VMs |
@@ -82,6 +129,15 @@ The server communicates via stdio using the MCP protocol.
 | `osc_read_load_balancers` | List Load Balancers with listeners, backends, and health checks |
 | `osc_read_console_output` | Get VM boot logs (console output) |
 
+### Profile Parameter
+
+All tools accept an optional `profile` parameter to specify which Outscale account to use. If not specified, the default profile is used.
+
+Example queries:
+- "List all running VMs" (uses default profile)
+- "List all running VMs using the production profile"
+- "Show me the security group rules for profile development"
+
 ## Example Queries
 
 Once connected to an MCP client like Claude:
@@ -91,6 +147,8 @@ Once connected to an MCP client like Claude:
 - "What volumes are attached to VM i-12345678?"
 - "Check my account quotas for VMs"
 - "Show API calls that failed in the last hour"
+- "List all available profiles"
+- "Check authentication for the production profile"
 
 ## License
 

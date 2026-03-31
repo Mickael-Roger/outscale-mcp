@@ -1,1 +1,16 @@
 /outscale-mcp
+
+# Outscale config files with credentials
+.osc/
+*.osc-config.json
+config.json
+config.json.*
+
+# Environment files
+.env
+.env.*
+
+# Secrets
+*.pem
+*.key
+*.secret

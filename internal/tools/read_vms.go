@@ -10,7 +10,7 @@ import (
 )
 
 // RegisterReadVMs registers the VM inspection tool.
-func RegisterReadVMs(s *server.MCPServer, client *oscclient.Client) {
+func RegisterReadVMs(s *server.MCPServer, clientManager *oscclient.ClientManager) {
 	tool := mcp.NewTool("osc_read_vms",
 		mcp.WithDescription(`List and inspect virtual machines (VMs) in your Outscale account.
 
@@ -19,6 +19,9 @@ Use this tool to:
 - Debug VM connectivity issues
 - Inspect VM configurations (type, image, network)
 - Find VMs by ID, name, or state`),
+		mcp.WithString("profile",
+			mcp.Description("Profile name to use (optional, uses default if not specified)"),
+		),
 		mcp.WithString("vm_ids",
 			mcp.Description("Filter by VM IDs (comma-separated)"),
 		),
@@ -37,16 +40,13 @@ Use this tool to:
 	)
 
 	s.AddTool(tool, func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleReadVMs(ctx, client, req)
+		return withClient(ctx, clientManager, req, func(authCtx context.Context, client *oscclient.Client, profile string) (*mcp.CallToolResult, error) {
+			return handleReadVMs(authCtx, client, req, profile)
+		})
 	})
 }
 
-func handleReadVMs(ctx context.Context, client *oscclient.Client, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	authCtx, err := client.Context(ctx)
-	if err != nil {
-		return mcp.NewToolResultText("Authentication failed: " + err.Error()), nil
-	}
-
+func handleReadVMs(authCtx context.Context, client *oscclient.Client, req mcp.CallToolRequest, profile string) (*mcp.CallToolResult, error) {
 	filters := osc.FiltersVm{}
 	args := req.Params.Arguments
 
@@ -97,6 +97,7 @@ func handleReadVMs(ctx context.Context, client *oscclient.Client, req mcp.CallTo
 	response := map[string]interface{}{
 		"vms":        vms,
 		"count":      len(vms),
+		"profile":    profile,
 		"request_id": safeResponseId(read.ResponseContext),
 	}
 

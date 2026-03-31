@@ -10,22 +10,20 @@ import (
 )
 
 // RegisterCheckAuth registers the authentication verification tool.
-func RegisterCheckAuth(s *server.MCPServer, client *oscclient.Client) {
+func RegisterCheckAuth(s *server.MCPServer, clientManager *oscclient.ClientManager) {
 	tool := mcp.NewTool("osc_check_auth",
 		mcp.WithDescription("Verify Outscale API credentials and retrieve account information. Use this to test connectivity and authentication before other operations."),
+		mcp.WithString("profile",
+			mcp.Description("Profile name to use (optional, uses default if not specified)"),
+		),
 	)
 
 	s.AddTool(tool, func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleCheckAuth(ctx, client)
+		return withClient(ctx, clientManager, req, handleCheckAuth)
 	})
 }
 
-func handleCheckAuth(ctx context.Context, client *oscclient.Client) (*mcp.CallToolResult, error) {
-	authCtx, err := client.Context(ctx)
-	if err != nil {
-		return mcp.NewToolResultText("Authentication failed: " + err.Error()), nil
-	}
-
+func handleCheckAuth(authCtx context.Context, client *oscclient.Client, profile string) (*mcp.CallToolResult, error) {
 	read, _, err := client.API.AccountApi.ReadAccounts(authCtx).ReadAccountsRequest(osc.ReadAccountsRequest{}).Execute()
 	if err != nil {
 		return formatError("verify authentication", err), nil
@@ -40,6 +38,7 @@ func handleCheckAuth(ctx context.Context, client *oscclient.Client) (*mcp.CallTo
 
 	response := map[string]interface{}{
 		"status":       "authenticated",
+		"profile":      profile,
 		"account_id":   safeString(account.AccountId),
 		"customer_id":  safeString(account.CustomerId),
 		"email":        safeString(account.Email),

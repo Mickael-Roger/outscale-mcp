@@ -14,18 +14,14 @@ import (
 
 func main() {
 	// Load configuration
-	cfg, err := config.Load()
+	pc, err := config.LoadProfileConfig()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Configuration error: %v\n", err)
 		os.Exit(1)
 	}
 
-	// Create Outscale API client
-	client, err := osc.NewWithCredentials(cfg.AccessKey, cfg.SecretKey, cfg.Region)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to create client: %v\n", err)
-		os.Exit(1)
-	}
+	// Create client manager
+	clientManager := osc.NewClientManager(pc)
 
 	// Create context with auth
 	ctx := context.Background()
@@ -38,13 +34,19 @@ func main() {
 	)
 
 	// Register all tools
-	tools.RegisterAll(s, client)
+	tools.RegisterAll(s, clientManager)
 
 	// Start the server
 	fmt.Println("Starting Outscale MCP server...")
-	fmt.Printf("Region: %s\n", cfg.Region)
+	fmt.Printf("Profiles available: %v\n", clientManager.ListProfiles())
+	fmt.Printf("Default profile: %s\n", clientManager.DefaultProfile())
 
 	// Verify auth on startup
+	client, err := clientManager.DefaultClient()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to get default client: %v\n", err)
+		os.Exit(1)
+	}
 	_, err = client.Context(ctx)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Authentication error: %v\n", err)

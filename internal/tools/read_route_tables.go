@@ -9,7 +9,7 @@ import (
 	oscclient "github.com/thomassaison/outscale-mcp/internal/osc"
 )
 
-func RegisterReadRouteTables(s *server.MCPServer, client *oscclient.Client) {
+func RegisterReadRouteTables(s *server.MCPServer, clientManager *oscclient.ClientManager) {
 	tool := mcp.NewTool("osc_read_route_tables",
 		mcp.WithDescription(`List and inspect Route Tables in your Outscale account.
 
@@ -33,19 +33,19 @@ Use this tool to:
 		mcp.WithString("route_gateway_ids",
 			mcp.Description("Filter by gateway IDs specified in routes (comma-separated)"),
 		),
+		mcp.WithString("profile",
+			mcp.Description("Profile name to use (optional, uses default if not specified)"),
+		),
 	)
 
 	s.AddTool(tool, func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return handleReadRouteTables(ctx, client, req)
+		return withClient(ctx, clientManager, req, func(authCtx context.Context, client *oscclient.Client, profile string) (*mcp.CallToolResult, error) {
+			return handleReadRouteTables(authCtx, client, req, profile)
+		})
 	})
 }
 
-func handleReadRouteTables(ctx context.Context, client *oscclient.Client, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	authCtx, err := client.Context(ctx)
-	if err != nil {
-		return mcp.NewToolResultText("Authentication failed: " + err.Error()), nil
-	}
-
+func handleReadRouteTables(authCtx context.Context, client *oscclient.Client, req mcp.CallToolRequest, profile string) (*mcp.CallToolResult, error) {
 	filters := osc.FiltersRouteTable{}
 	args := req.Params.Arguments
 
@@ -83,6 +83,7 @@ func handleReadRouteTables(ctx context.Context, client *oscclient.Client, req mc
 	response := map[string]interface{}{
 		"route_tables": routeTables,
 		"count":        len(routeTables),
+		"profile":      profile,
 		"request_id":   safeResponseId(read.ResponseContext),
 	}
 
